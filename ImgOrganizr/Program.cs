@@ -68,11 +68,11 @@
         }
 
         /// <summary>
-        /// Extracts the 'Date Taken' from an image's metadata.
+		/// Extracts 'Date Taken' from the metadata of the image file.
         /// </summary>
-        /// <param name="filePath">The path of the image file.</param>
-        /// <returns>The DateTime representing the 'Date Taken'.</returns>
-        static DateTime? ExtractDateTaken(string filePath)
+		/// <param name="filePath">Path to the image file.</param>
+		/// <returns>Date taken as DateTime or null.</returns>
+		static DateTime? ExtractDateTaken(string filePath, string regexPattern)
         {
             try
             {
@@ -83,9 +83,21 @@
                 return DateTime.ParseExact(dateTakenStr, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture);
             }
             }
-            catch (ArgumentException)
+			catch
             {
-                // Return null if the property is not found.
+				// Fallback: Try to extract date from filename using regex
+				if (!string.IsNullOrEmpty(regexPattern))
+				{
+					var fileName = Path.GetFileNameWithoutExtension(filePath);
+					var match = Regex.Match(fileName, regexPattern);
+
+					if (match.Success)
+					{
+						string extractedDate = match.Groups[0].Value;
+						return DateTime.ParseExact(extractedDate, "yyyyMMdd", CultureInfo.InvariantCulture);
+					}
+				}
+
                 return null;
             }
         }
