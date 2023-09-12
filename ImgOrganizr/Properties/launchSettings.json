@@ -2,7 +2,7 @@
   "profiles": {
     "ImgOrganizr": {
       "commandName": "Project",
-      "commandLineArgs": "\"C:\\Users\\Arjan\\OneDrive\\Afbeeldingen\\Photos\\Uitzoeken\" --rename"
+      "commandLineArgs": "--rename \"C:\\Temp\\Test Img Folder\" \"\\d{4}\\d{2}\\d{2}\""
     }
   }
 }

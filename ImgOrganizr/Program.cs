@@ -14,7 +14,7 @@
         /// <summary>
         /// The entry point for the program.
         /// </summary>
-        /// <param name="args">Command-line arguments.</param>
+		/// <param name="args">CLI arguments. The first is one of the commands --rename, --move and the second is directory, the third is the regex depending on the chosen command.</param>
         static void Main(string[] args)
         {
             if (args.Length < 2)
@@ -25,8 +25,10 @@
 
             DisplayBanner();
 
-            string dir = args[0];
-            var operations = args.Skip(1).ToList();
+			var operations = args[0];
+
+			string dir = args[1];
+			string regexPattern = args[2];
 
             if (!Directory.Exists(dir))
             {
@@ -34,15 +36,23 @@
                 return;
             }
 
+			if (String.IsNullOrEmpty(regexPattern))
+			{
+				AnsiConsole.MarkupLine($"[red]Error: The regex is not given.[/]");
+				return;
+			}
+
             if (operations.Contains("--rename"))
             {
-                RenameFiles(dir);
+				RenameFiles(dir, regexPattern);
             }
 
             if (operations.Contains("--move"))
             {
-                MoveFiles(dir);
+				MoveFiles(dir, regexPattern);
             }
+
+			return;
         }
 
         /// <summary>
