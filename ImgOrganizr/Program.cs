@@ -61,7 +61,7 @@
         static void DisplayBanner()
         {
             AnsiConsole.Write(
-                new FigletText("File Renamer")
+                new FigletText("Img Organizr")
                 .Centered()
                 .Color(Spectre.Console.Color.Red)
             );
