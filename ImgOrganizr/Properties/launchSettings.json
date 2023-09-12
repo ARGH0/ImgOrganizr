@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ImgOrganizr": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\Arjan\\OneDrive\\Afbeeldingen\\Photos\\Uitzoeken\" --rename"
+    }
+  }
+}
