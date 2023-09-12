@@ -103,10 +103,10 @@
         }
 
         /// <summary>
-        /// Renames image files in a directory based on 'Date Taken' and a unique number.
+		/// Renames files in the specified directory. 
         /// </summary>
-        /// <param name="dir">The directory containing the image files.</param>
-        static void RenameFiles(string dir)
+		/// <param name="dir">Directory path</param>
+		static void RenameFiles(string dir, string regexPattern)
         {
             var uniqueNumbersPerDay = new Dictionary<string, int>();
             var table = new Table().Border(TableBorder.Rounded);
@@ -121,7 +121,7 @@
                 foreach (var filePath in Directory.GetFiles(dir, "*.jpg"))
                 {
                     string oldFileName = Path.GetFileName(filePath);
-                    DateTime? dateTaken = ExtractDateTaken(filePath);
+					DateTime? dateTaken = ExtractDateTaken(filePath, regexPattern);
 
                     if (dateTaken != null)
                     {
@@ -145,7 +145,7 @@
                     }
                     else
                     {
-                        // DateTaken is null, keeping original filename
+						// Keep the original name if DateTaken is null
                         table.AddRow(oldFileName, "Kept Original");
                     }
 
@@ -156,16 +156,18 @@
         }
 
         /// <summary>
-        /// Moves image files into subdirectories based on their 'Date Taken'.
+		/// Moves files into subdirectories based on their 'Date Taken'.
         /// </summary>
-        /// <param name="dir">The directory containing the image files.</param>
-        static void MoveFiles(string dir)
+		/// <param name="dir">Directory path</param>
+		static void MoveFiles(string dir, string regexPattern)
         {
             foreach (var filePath in Directory.GetFiles(dir, "*.jpg"))
             {
-                DateTime? dateTaken = ExtractDateTaken(filePath);
+				DateTime? dateTaken = ExtractDateTaken(filePath, regexPattern);
 
-                string newDir = Path.Combine(dir, dateTaken?.Year.ToString(), dateTaken?.Month.ToString("D2"), dateTaken?.Day.ToString("D2"));
+				if (dateTaken != null)
+				{
+					string newDir = Path.Combine(dir, dateTaken.Value.Year.ToString(), dateTaken.Value.Month.ToString("D2"), dateTaken.Value.Day.ToString("D2"));
                 Directory.CreateDirectory(newDir);
 
                 string newFilePath = Path.Combine(newDir, Path.GetFileName(filePath));
@@ -173,5 +175,7 @@
             }
         }
     }
+	}
+}
 
 }
