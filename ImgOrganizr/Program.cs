@@ -112,6 +112,24 @@ using Spectre.Console;
 			table.AddColumn("Old File Name");
 			table.AddColumn("New File Name");
 
+			// Populate uniqueNumbersPerDay dictionary by scanning existing files
+			foreach (var existingFilePath in Directory.GetFiles(dir, "*.jpg"))
+			{
+				string existingFileName = Path.GetFileNameWithoutExtension(existingFilePath);
+				var match = Regex.Match(existingFileName, @"(\d{2}_\d{2}_\d{4})_(\d{4})_image");
+				if (match.Success)
+				{
+					string date = match.Groups[1].Value;
+					int uniqueNumber = int.Parse(match.Groups[2].Value);
+
+					if (!uniqueNumbersPerDay.ContainsKey(date) || uniqueNumbersPerDay[date] < uniqueNumber)
+					{
+						uniqueNumbersPerDay[date] = uniqueNumber;
+					}
+				}
+			}
+
+			// Create LiveDisplay
 			var live = AnsiConsole.Live(table);
 			live.Start(ctx =>
 			{
