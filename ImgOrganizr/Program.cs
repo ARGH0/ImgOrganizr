@@ -2,9 +2,10 @@
 {
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Globalization;
-using System.IO;
+	using System.Drawing;
+	using System.Drawing.Imaging;
+	using System.Globalization;
+	using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -26,10 +27,8 @@ using Spectre.Console;
 
             DisplayBanner();
 
-			var operations = args[0];
-
-			string dir = args[1];
-			string regexPattern = args[2];
+			string dir = args[0];
+			string regexPattern = args[1];
 
 			if (!Directory.Exists(dir))
 			{
@@ -43,15 +42,11 @@ using Spectre.Console;
 				return;
 			}
 
-			if (operations.Contains("--rename"))
-			{
-				RenameFiles(dir, regexPattern);
-			}
+			CreateBackupFolder(dir);
+			SetMetaData(dir, regexPattern);
+			RenameFiles(dir);
+			MoveFiles(dir);
 
-			if (operations.Contains("--move"))
-			{
-				MoveFiles(dir, regexPattern);
-			}
 		}
 
         /// <summary>
@@ -66,12 +61,12 @@ using Spectre.Console;
             );
         }
 
-		/// <summary>
-		/// Extracts 'Date Taken' from the metadata of the image file.
-		/// </summary>
-		/// <param name="filePath">Path to the image file.</param>
-		/// <returns>Date taken as DateTime or null.</returns>
-		static DateTime? ExtractDateTaken(string filePath, string regexPattern)
+		static DateTime? ExtractDateTimeCreated(string filePath)
+		{
+			return File.GetCreationTime(filePath);
+		}
+
+		static DateTime? ExtractDateTimeTaken(string filePath)
 		{
 			try
 			{
@@ -84,28 +79,67 @@ using Spectre.Console;
 			}
 			catch
 			{
-				// Fallback: Try to extract date from filename using regex
-				if (!string.IsNullOrEmpty(regexPattern))
-				{
-					var fileName = Path.GetFileNameWithoutExtension(filePath);
-					var match = Regex.Match(fileName, regexPattern);
-
-					if (match.Success)
-					{
-						string extractedDate = match.Groups[0].Value;
-						return DateTime.ParseExact(extractedDate, "yyyyMMdd", CultureInfo.InvariantCulture);
-					}
-				}
-
 				return null;
 			}
 		}
+
+		static DateTime? ExtractDateTimeChanged(string filePath)
+		{
+			return File.GetLastWriteTime(filePath);
+		}
+
+		static DateTime? ExtractDateFromFileName(string filePath, string regexPattern)
+		{
+			// Fallback: Try to extract date from filename using regex
+			if (!string.IsNullOrEmpty(regexPattern))
+			{
+				var fileName = Path.GetFileNameWithoutExtension(filePath);
+				var match = Regex.Match(fileName, regexPattern);
+
+				if (match.Success)
+				{
+					string extractedDate = match.Groups[0].Value;
+					DateTime dateTime = DateTime.ParseExact(extractedDate, "yyyyMMdd", CultureInfo.InvariantCulture);
+					return dateTime;
+				}
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Extracts 'Date Taken' from the metadata of the image file.
+		/// </summary>
+		/// <param name="filePath">Path to the image file.</param>
+		/// <returns>Date taken as DateTime or null.</returns>
+		static DateTime? ExtractDateTaken(string filePath, string regexPattern)
+		{
+			DateTime? result = ExtractDateTimeTaken(filePath);
+
+			if (result != null)
+			{
+				return result;
+			}
+
+			result = ExtractDateFromFileName(filePath, regexPattern);
+
+			if (result != null)
+			{
+				return result;
+			}
+
+			result = ExtractDateTimeChanged(filePath);
+
+			return result;
+		}
+
+
 
 		/// <summary>
 		/// Renames files in the specified directory. 
 		/// </summary>
 		/// <param name="dir">Directory path</param>
-		static void RenameFiles(string dir, string regexPattern)
+		static void RenameFiles(string dir)
 		{
 			var uniqueNumbersPerDay = new Dictionary<string, int>();
 			var table = new Table().Border(TableBorder.Rounded);
@@ -137,7 +171,7 @@ using Spectre.Console;
 				foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
 				{
 					string oldFileName = Path.GetFileName(filePath);
-					DateTime? dateTaken = ExtractDateTaken(filePath, regexPattern);
+					DateTime? dateTaken = ExtractDateTimeCreated(filePath);
 
 					if (dateTaken != null)
 					{
@@ -175,12 +209,12 @@ using Spectre.Console;
 		/// Moves files into subdirectories based on their 'Date Taken'.
 		/// </summary>
 		/// <param name="dir">Directory path</param>
-		static void MoveFiles(string dir, string regexPattern)
+		static void MoveFiles(string dir)
 		{
-			string[] searchPatterns = { "*.jpg", "*.jpeg" };
+			string[] searchPatterns = { "*.jpg" };
 			foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
 			{
-				DateTime? dateTaken = ExtractDateTaken(filePath, regexPattern);
+				DateTime? dateTaken = ExtractDateTimeCreated(filePath);
 
 				if (dateTaken != null)
 				{
@@ -189,6 +223,32 @@ using Spectre.Console;
 
 					string newFilePath = Path.Combine(newDir, Path.GetFileName(filePath));
 					File.Move(filePath, newFilePath);
+				}
+			}
+		}
+
+		static void CreateBackupFolder(string dir)
+		{
+			string[] searchPatterns = { "*.jpg", "*.jpeg" };
+			foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
+			{
+					string newDir = Path.Combine(dir, "backup");
+					Directory.CreateDirectory(newDir);
+
+					string newFilePath = Path.Combine(newDir, Path.GetFileName(filePath));
+					File.Copy(filePath, newFilePath, false);
+			}
+		}
+
+		static void SetMetaData(string dir, string regexPattern)
+		{
+			string[] searchPatterns = { "*.jpg", "*.jpeg" };
+			foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
+			{
+				DateTime? dateTaken = ExtractDateTaken(filePath, regexPattern);
+				if (dateTaken != null)
+				{
+					File.SetCreationTime(filePath, dateTaken.Value);
 				}
 			}
 		}

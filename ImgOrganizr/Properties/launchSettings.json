@@ -2,7 +2,7 @@
   "profiles": {
     "ImgOrganizr": {
       "commandName": "Project",
-      "commandLineArgs": "--rename \"C:\\Temp\\Test Img Folder\" \"\\d{4}\\d{2}\\d{2}\""
+      "commandLineArgs": "\"C:\\Temp\\Test Img Folder\" \"\\d{4}\\d{2}\\d{2}\""
     }
   }
 }
