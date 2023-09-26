@@ -11,7 +11,7 @@ namespace ImgOrganizr
         /// <summary>
         /// The entry point for the program.
         /// </summary>
-        /// <param name="args">CLI arguments. The first is one of the commands --rename, --move and the second is directory, the third is the regex depending on the chosen command.</param>
+        /// <param name="args">CLI arguments. The firs is directory, the second is the regex.</param>
         private static void Main(string[] args)
         {
             if (args.Length < 2)
@@ -37,10 +37,33 @@ namespace ImgOrganizr
                 return;
             }
 
-            CreateBackupFolder(dir);
-            SetMetaData(dir, regexPattern);
-            RenameFiles(dir);
-            MoveFiles(dir);
+            Boolean success = false;
+
+            try
+            {
+                CreateBackupFolder(dir);
+                SetMetaData(dir, regexPattern);
+                RenameFiles(dir);
+                MoveFiles(dir);
+                success = true;
+            }
+            catch (Exception ex)
+            {
+                // After operations are done
+                AnsiConsole.MarkupLine("[red]Something went wrong![/]");
+                AnsiConsole.MarkupLine(ex.Message);
+                success = false;
+            }
+
+            if (success)
+            {
+                // After operations are done
+                AnsiConsole.MarkupLine("[green]All operations finished![/]");
+            }
+
+            // Pause and wait for user input before exiting
+            AnsiConsole.MarkupLine("[yellow]Press any key to exit...[/]");
+            Console.ReadKey();
 
         }
 
