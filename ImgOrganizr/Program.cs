@@ -1,7 +1,12 @@
 ﻿using System.Drawing;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using ImgOrganizr.Application;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 
 namespace ImgOrganizr
@@ -14,26 +19,55 @@ namespace ImgOrganizr
         /// <param name="args">CLI arguments. The firs is directory, the second is the regex.</param>
         private static void Main(string[] args)
         {
-            if (args.Length < 2)
+
+            // Create service collection
+            ServiceCollection serviceCollection = new ServiceCollection();
+            ConfigureServices(serviceCollection);
+
+            // Create service provider
+            IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
+
+
+            // Get logger from service provider
+            Logger logger = serviceProvider.GetRequiredService<Logger>();
+            ConsoleLogger consoleLogger = serviceProvider.GetRequiredService<ConsoleLogger>();
+            FileLogger fileLogger = serviceProvider.GetRequiredService<FileLogger>();
+            logger.MessageLogged += consoleLogger.Log;
+            logger.MessageLogged += fileLogger.Log;
+
+
+            // Use logger
+            logger.Log(new LogMessage(message: "Hello, ImgOrganizr!", color: "green", level: "INFO" ));
+
+
+            var builder = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("Config.json", optional: false, reloadOnChange: true);
+
+                IConfiguration configuration = builder.Build();
+
+            CustomConfig customConfig = new CustomConfig();//configuration.GetSection("CustomConfig").Get<CustomConfig>();
+
+            if(customConfig == null )
             {
-                AnsiConsole.MarkupLine("[red]Error: Please provide the directory and at least one operation (--rename, --move).[/]");
+                logger.Log(new LogMessage(message: "Error: Please provide the configuration file.", color: "red", level: "ERROR" ));
                 return;
             }
 
             DisplayBanner();
 
-            string dir = args[0];
-            string regexPattern = args[1];
+            string dir = string.Empty;//customConfig.inputDirectories[0];
+            string regexPattern = string.Empty;//customConfig.searchPatterns[0];
 
             if (!Directory.Exists(dir))
             {
-                AnsiConsole.MarkupLine($"[red]Error: The directory '{dir}' does not exist.[/]");
+                logger.Log(new LogMessage(message: $"The directory '{dir}' does not exist.", color: "red", level: "ERROR"));
                 return;
             }
 
             if (string.IsNullOrEmpty(regexPattern))
             {
-                AnsiConsole.MarkupLine($"[red]Error: The regex is not given.[/]");
+                logger.Log(new LogMessage(message: "The regex is not given.", color: "red", level: "ERROR" ));
                 return;
             }
 
@@ -41,28 +75,50 @@ namespace ImgOrganizr
 
             try
             {
-                CreateBackupFolder(dir);
-                SetMetaData(dir, regexPattern);
+
+                foreach (string inputDirectory in customConfig.inputDirectories)
+                {
+
+                    if (!Directory.Exists(inputDirectory))
+                    {
+                        logger.Log(new LogMessage(message: $"The directory '{inputDirectory}' does not exist.", color: "red", level: "ERROR" ));
+                        continue;
+                    }
+                    else
+                    {
+                        string[] files = Directory.GetFiles(inputDirectory, "*", SearchOption.AllDirectories);
+                        logger.Log(new LogMessage(message: $"Found {files.Length} files in {inputDirectory}", color: "blue", level: "INFO" ));
+                    }
+
+                    //CopyFilesAndFoldersToWorkingDirectory();
+                    //CreateBackup();
+                    //SetMetadataCorrectly();
+                    //RenameFiles();
+                    //MoveToOuputFolder();
+                }
+
+                Processor.CreateBackupFolder(dir);
+                Processor.SetMetaData(dir, regexPattern);
                 RenameFiles(dir);
-                MoveFiles(dir);
+                Processor.MoveFiles(dir);
                 success = true;
             }
             catch (Exception ex)
             {
                 // After operations are done
-                AnsiConsole.MarkupLine("[red]Something went wrong![/]");
-                AnsiConsole.MarkupLine(ex.Message);
+                logger.Log(new LogMessage(message: "Something went wrong!", color: "red", level: "ERROR" ));
+                logger.Log(new LogMessage(message: ex.Message, color: "white", level: "DETAILS" ));
                 success = false;
             }
 
             if (success)
             {
                 // After operations are done
-                AnsiConsole.MarkupLine("[green]All operations finished![/]");
+                logger.Log(new LogMessage(message: "All operations finished!", color: "green", level: "INFO" ));
             }
 
             // Pause and wait for user input before exiting
-            AnsiConsole.MarkupLine("[yellow]Press any key to exit...[/]");
+            logger.Log(new LogMessage(message: "Press any key to exit...", color: "yellow", level: "INFO" ));
             Console.ReadKey();
 
         }
@@ -78,85 +134,6 @@ namespace ImgOrganizr
                 .Color(Spectre.Console.Color.Red)
             );
         }
-
-        private static DateTime? ExtractDateTimeCreated(string filePath)
-        {
-            return File.GetCreationTime(filePath);
-        }
-
-        private static DateTime? ExtractDateTimeTaken(string filePath)
-        {
-            try
-            {
-                using (Image image = Image.FromFile(filePath))
-                {
-                    var propItem = image.GetPropertyItem(36867); // 36867 is the id for 'Date Taken'
-                    if (propItem?.Value != null)
-                    {
-                        string dateTakenStr = Encoding.UTF8.GetString(propItem.Value).Trim('\0');
-                        return DateTime.ParseExact(dateTakenStr, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture);
-                    }
-
-                    return null;
-                }
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static DateTime? ExtractDateTimeChanged(string filePath)
-        {
-            return File.GetLastWriteTime(filePath);
-        }
-
-        private static DateTime? ExtractDateFromFileName(string filePath, string regexPattern)
-        {
-            // Fallback: Try to extract date from filename using regex
-            if (!string.IsNullOrEmpty(regexPattern))
-            {
-                var fileName = Path.GetFileNameWithoutExtension(filePath);
-                var match = Regex.Match(fileName, regexPattern);
-
-                if (match.Success)
-                {
-                    string extractedDate = match.Groups[0].Value;
-                    DateTime dateTime = DateTime.ParseExact(extractedDate, "yyyyMMdd", CultureInfo.InvariantCulture);
-                    return dateTime;
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Extracts 'Date Taken' from the metadata of the image file.
-        /// </summary>
-        /// <param name="filePath">Path to the image file.</param>
-        /// <returns>Date taken as DateTime or null.</returns>
-        private static DateTime? ExtractDateTaken(string filePath, string regexPattern)
-        {
-            DateTime? result = ExtractDateTimeTaken(filePath);
-
-            if (result != null)
-            {
-                return result;
-            }
-
-            result = ExtractDateFromFileName(filePath, regexPattern);
-
-            if (result != null)
-            {
-                return result;
-            }
-
-            result = ExtractDateTimeChanged(filePath);
-
-            return result;
-        }
-
-
 
         /// <summary>
         /// Renames files in the specified directory. 
@@ -194,7 +171,7 @@ namespace ImgOrganizr
                 foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
                 {
                     string oldFileName = Path.GetFileName(filePath);
-                    DateTime? dateTaken = ExtractDateTimeCreated(filePath);
+                    DateTime? dateTaken = DateTimeExtractor.ExtractDateTimeCreated(filePath);
 
                     if (dateTaken != null)
                     {
@@ -238,52 +215,12 @@ namespace ImgOrganizr
             });
         }
 
-        /// <summary>
-        /// Moves files into subdirectories based on their 'Date Taken'.
-        /// </summary>
-        /// <param name="dir">Directory path</param>
-        private static void MoveFiles(string dir)
+        private static void ConfigureServices(IServiceCollection services)
         {
-            string[] searchPatterns = { "*.jpg" };
-            foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
-            {
-                DateTime? dateTaken = ExtractDateTimeCreated(filePath);
-
-                if (dateTaken != null)
-                {
-                    string newDir = Path.Combine(dir, dateTaken.Value.Year.ToString(), dateTaken.Value.Month.ToString("D2"), dateTaken.Value.Day.ToString("D2"));
-                    Directory.CreateDirectory(newDir);
-
-                    string newFilePath = Path.Combine(newDir, Path.GetFileName(filePath));
-                    File.Move(filePath, newFilePath);
-                }
-            }
-        }
-
-        private static void CreateBackupFolder(string dir)
-        {
-            string[] searchPatterns = { "*.jpg", "*.jpeg" };
-            foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
-            {
-                string newDir = Path.Combine(dir, "backup");
-                Directory.CreateDirectory(newDir);
-
-                string newFilePath = Path.Combine(newDir, Path.GetFileName(filePath));
-                File.Copy(filePath, newFilePath, false);
-            }
-        }
-
-        private static void SetMetaData(string dir, string regexPattern)
-        {
-            string[] searchPatterns = { "*.jpg", "*.jpeg" };
-            foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
-            {
-                DateTime? dateTaken = ExtractDateTaken(filePath, regexPattern);
-                if (dateTaken != null)
-                {
-                    File.SetCreationTime(filePath, dateTaken.Value);
-                }
-            }
+            // Register your logger with the dependency injection container
+            services.AddSingleton<Logger>();
+            services.AddSingleton<ConsoleLogger>();
+            services.AddSingleton<FileLogger>(_ => new FileLogger("log.txt"));
         }
     }
 }
