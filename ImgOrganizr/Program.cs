@@ -44,9 +44,9 @@ namespace ImgOrganizr
                     .SetBasePath(Directory.GetCurrentDirectory())
                     .AddJsonFile("Config.json", optional: false, reloadOnChange: true);
 
-                IConfiguration configuration = builder.Build();
+            IConfiguration configuration = builder.Build();
 
-            CustomConfig customConfig = new CustomConfig();//configuration.GetSection("CustomConfig").Get<CustomConfig>();
+            CustomConfig? customConfig = configuration.Get<CustomConfig>();
 
             if(customConfig == null )
             {
@@ -56,8 +56,8 @@ namespace ImgOrganizr
 
             DisplayBanner();
 
-            string dir = string.Empty;//customConfig.inputDirectories[0];
-            string regexPattern = string.Empty;//customConfig.searchPatterns[0];
+            string dir = customConfig.inputDirectories[0];
+            string regexPattern = customConfig.searchPatterns[0];
 
             if (!Directory.Exists(dir))
             {
