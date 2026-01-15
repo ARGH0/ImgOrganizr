@@ -8,5 +8,19 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.54.0" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ImgOrganizr.Application\ImgOrganizr.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
