@@ -99,7 +99,9 @@ namespace ImgOrganizr
 
                 Processor.CreateBackupFolder(dir);
                 Processor.SetMetaData(dir, regexPattern);
-                RenameFiles(dir);
+                var uniqueNumbersPerDay = RenameFiles(dir);
+                RenderLiveDisplay(dir, uniqueNumbersPerDay);
+
                 Processor.MoveFiles(dir);
                 success = true;
             }
@@ -139,12 +141,10 @@ namespace ImgOrganizr
         /// Renames files in the specified directory. 
         /// </summary>
         /// <param name="dir">Directory path</param>
-        private static void RenameFiles(string dir)
+        private static Dictionary<string,int> RenameFiles(string dir)
         {
             var uniqueNumbersPerDay = new Dictionary<string, int>();
-            var table = new Table().Border(TableBorder.Rounded);
-            table.AddColumn("Old File Name");
-            table.AddColumn("New File Name");
+
 
             // Populate uniqueNumbersPerDay dictionary by scanning existing files
             foreach (var existingFilePath in Directory.GetFiles(dir, "*.jpg"))
@@ -162,6 +162,16 @@ namespace ImgOrganizr
                     }
                 }
             }
+
+            return uniqueNumbersPerDay;
+        }
+
+        private static void RenderLiveDisplay(string dir, Dictionary<string, int> uniqueNumbersPerDay)
+        {
+
+            var table = new Table().Border(TableBorder.Rounded);
+            table.AddColumn("Old File Name");
+            table.AddColumn("New File Name");
 
             // Create LiveDisplay
             var live = AnsiConsole.Live(table);
