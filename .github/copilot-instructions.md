@@ -1,0 +1,24 @@
+# Copilot Instructions for ImgOrganizr
+
+- Scope: single .NET 8 CLI in ImgOrganizr/Program.cs; no tests; solution file at ImgOrganizr.sln.
+- Entry: Program.Main expects two args: [0]=target directory, [1]=regex to pull dates from filenames.
+- Happy-path order: CreateBackupFolder -> SetMetaData -> RenameFiles -> MoveFiles. Failures bubble to a single catch that prints the message.
+- Backup: copies *.jpg/*.jpeg to a dir/backup folder with File.Copy overwrite=false; repeated runs will throw if the backup file already exists.
+- Date derivation in SetMetaData: prefer EXIF property 36867 (Date Taken); fallback regex match against filename using provided pattern (expects yyyyMMdd); fallback to last write time. Creation time is then set from this chosen date.
+- RenameFiles uses File.GetCreationTime (not EXIF) to build names; pattern: dd_MM_yyyy_####_image.jpg; per-day counters are initialized by scanning existing files that already match that pattern.
+- MoveFiles uses File.GetCreationTime to place files into year/month/day subfolders under the target directory.
+- Console UI: Spectre.Console Figlet banner, tables, markup; keep messages concise and avoid raw Console.WriteLine to maintain styling.
+- Regex expectation: filenames must contain an 8-digit date (yyyyMMdd) for fallback parsing; parsing uses DateTime.ParseExact.
+- Supported image extensions are limited to jpg/jpeg (case-sensitive defaults); no PNG/HEIC support without extending search patterns.
+- All file operations assume the provided directory exists; no recursion into subfolders.
+- Side effects are in-place; consider that File.Move will overwrite silently only if destination doesn’t exist; no conflict handling.
+- Build: dotnet build ImgOrganizr.sln (warnings treated as errors via Directory.Build.props).
+- Run: dotnet run --project ImgOrganizr -- "C:\path\to\images" "(?<=IMG_)[0-9]{8}" (example regex extracts yyyymmdd).
+- Target framework: net8.0; LangVersion 11; analyzers disabled for non-net6; no nullable suppressions beyond implicit usings/nullable enabled.
+- Dependencies: Spectre.Console 0.48.0, System.Drawing.Common 8.0.8 (GDI+ on Windows; avoid server environments without libgdiplus).
+- Ensure backup and target folders are writable; moves will fail across volume boundaries if permissions lacking.
+- If adding new commands/flags, follow existing Spectre.Console style and keep the pipeline order intact unless changing backup semantics.
+- Prefer DateTime.ParseExact with invariant culture when parsing filenames to match current behavior.
+- Tests are absent; manual verification typically uses a sample image folder and regex-driven runs.
+- Be careful changing creation-time usage: rename/move currently rely on creation time, while metadata setting uses EXIF/regex-derived date.
+- When adding analyzers or new TFMs, update Directory.Build.props conditions (analyzers currently only active on net6 builds).
