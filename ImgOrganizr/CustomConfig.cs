@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace ImgOrganizr
 {
-    internal class CustomConfig
+    public class CustomConfig
     {
-        internal CustomConfig()
+        public CustomConfig()
         {
             inputDirectories = new string[] { };
             outputDirectory = string.Empty;
