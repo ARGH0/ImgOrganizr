@@ -8,6 +8,48 @@ namespace ImgOrganizr.Application
 {
     public class DirectoryHandler
     {
+        public static string CreateRunFolder(string baseRunDirectory)
+        {
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string runFolderName = $"run_{timestamp}";
+            string runFolderPath = Path.Combine(baseRunDirectory, runFolderName);
+            Directory.CreateDirectory(runFolderPath);
+            return runFolderPath;
+        }
+
+        public static void CopyFilesToRunFolder(string[] inputDirectories, string runFolderPath)
+        {
+            string[] searchPatterns = { "*.jpg", "*.jpeg" };
+            
+            foreach (string inputDir in inputDirectories)
+            {
+                if (!Directory.Exists(inputDir))
+                    continue;
+                    
+                foreach (string pattern in searchPatterns)
+                {
+                    foreach (string sourceFile in Directory.GetFiles(inputDir, pattern, SearchOption.AllDirectories))
+                    {
+                        string fileName = Path.GetFileName(sourceFile);
+                        string destFile = Path.Combine(runFolderPath, fileName);
+                        
+                        // Handle duplicate filenames
+                        int counter = 1;
+                        string fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+                        string extension = Path.GetExtension(fileName);
+                        
+                        while (File.Exists(destFile))
+                        {
+                            destFile = Path.Combine(runFolderPath, $"{fileNameWithoutExt}_{counter}{extension}");
+                            counter++;
+                        }
+                        
+                        File.Copy(sourceFile, destFile);
+                    }
+                }
+            }
+        }
+
         public static void CreateBackupFolder(string dir)
         {
             string[] searchPatterns = { "*.jpg", "*.jpeg" };

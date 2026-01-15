@@ -44,15 +44,40 @@ namespace ImgOrganizr.Application
             }
         }
 
-        public static void SetMetaData(string dir, string regexPattern)
+        public static void SetMetaData(string dir, string regexPattern, string failedDirectory)
         {
             string[] searchPatterns = { "*.jpg", "*.jpeg" };
             foreach (string filePath in searchPatterns.SelectMany(sp => Directory.GetFiles(dir, sp)))
             {
-                DateTime? dateTaken = DateTimeExtractor.ExtractDateTaken(filePath, regexPattern);
-                if (dateTaken != null)
+                try
                 {
-                    File.SetCreationTime(filePath, dateTaken.Value);
+                    DateTime? dateTaken = DateTimeExtractor.ExtractDateTaken(filePath, regexPattern);
+                    if (dateTaken != null)
+                    {
+                        File.SetCreationTime(filePath, dateTaken.Value);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Move file to failed directory if parsing fails
+                    if (!string.IsNullOrEmpty(failedDirectory))
+                    {
+                        Directory.CreateDirectory(failedDirectory);
+                        string fileName = Path.GetFileName(filePath);
+                        string failedFilePath = Path.Combine(failedDirectory, fileName);
+                        
+                        // Handle duplicate filenames
+                        int counter = 1;
+                        while (File.Exists(failedFilePath))
+                        {
+                            string fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+                            string extension = Path.GetExtension(fileName);
+                            failedFilePath = Path.Combine(failedDirectory, $"{fileNameWithoutExt}_{counter}{extension}");
+                            counter++;
+                        }
+                        
+                        File.Move(filePath, failedFilePath);
+                    }
                 }
             }
         }

@@ -1,12 +1,13 @@
 {
     "inputDirectories": [
-        "C:\\Temp\\Test Img Folder",
-        "C:\\Temp\\Test Img Folder 2"
+        "E:\\temp\\Test Img Folder",
+        "E:\\temp\\Test Img Folder 2"
     ],
 
-    "outputDirectory": "C:/Temp/output",
-    "workingDirectory": "C:/Temp/working/",
-    "backupDirectory": "C:/Temp/backup/",
+    "outputDirectory": "E:/temp/output",
+    "workingDirectory": "E:/temp/working/",
+    "backupDirectory": "E:/temp/backup/",
+    "runDirectory": "E:/temp/runs/",
 
     "searchPatterns": [ "\\d{4}\\d{2}\\d{2}" ]
 

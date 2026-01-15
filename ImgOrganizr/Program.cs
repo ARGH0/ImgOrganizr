@@ -56,14 +56,13 @@ namespace ImgOrganizr
 
             DisplayBanner();
 
-            string dir = customConfig.inputDirectories[0];
-            string regexPattern = customConfig.searchPatterns[0];
-
-            if (!Directory.Exists(dir))
+            if (string.IsNullOrEmpty(customConfig.runDirectory))
             {
-                logger.Log(new LogMessage(message: $"The directory '{dir}' does not exist.", color: "red", level: "ERROR"));
+                logger.Log(new LogMessage(message: "The run directory is not configured.", color: "red", level: "ERROR"));
                 return;
             }
+
+            string regexPattern = customConfig.searchPatterns[0];
 
             if (string.IsNullOrEmpty(regexPattern))
             {
@@ -75,10 +74,13 @@ namespace ImgOrganizr
 
             try
             {
+                // Create unique run folder
+                string runFolderPath = DirectoryHandler.CreateRunFolder(customConfig.runDirectory);
+                logger.Log(new LogMessage(message: $"Created run folder: {runFolderPath}", color: "blue", level: "INFO"));
 
+                // Count files in input directories
                 foreach (string inputDirectory in customConfig.inputDirectories)
                 {
-
                     if (!Directory.Exists(inputDirectory))
                     {
                         logger.Log(new LogMessage(message: $"The directory '{inputDirectory}' does not exist.", color: "red", level: "ERROR" ));
@@ -89,20 +91,23 @@ namespace ImgOrganizr
                         string[] files = Directory.GetFiles(inputDirectory, "*", SearchOption.AllDirectories);
                         logger.Log(new LogMessage(message: $"Found {files.Length} files in {inputDirectory}", color: "blue", level: "INFO" ));
                     }
-
-                    //CopyFilesAndFoldersToWorkingDirectory();
-                    //CreateBackup();
-                    //SetMetadataCorrectly();
-                    //RenameFiles();
-                    //MoveToOuputFolder();
                 }
 
-                Processor.CreateBackupFolder(dir);
-                Processor.SetMetaData(dir, regexPattern);
-                var uniqueNumbersPerDay = RenameFiles(dir);
-                RenderLiveDisplay(dir, uniqueNumbersPerDay);
+                // Copy all files to run folder
+                DirectoryHandler.CopyFilesToRunFolder(customConfig.inputDirectories, runFolderPath);
+                logger.Log(new LogMessage(message: "Copied all files to run folder", color: "green", level: "INFO"));
 
-                Processor.MoveFiles(dir);
+                // Create backup, failed, and ignored directories within run folder
+                string backupDirectory = Path.Combine(runFolderPath, "backup");
+                string failedDirectory = Path.Combine(runFolderPath, "failed");
+                string ignoredDirectory = Path.Combine(runFolderPath, "ignored");
+
+                Processor.CreateBackupFolder(runFolderPath);
+                Processor.SetMetaData(runFolderPath, regexPattern, failedDirectory);
+                var uniqueNumbersPerDay = RenameFiles(runFolderPath);
+                RenderLiveDisplay(runFolderPath, uniqueNumbersPerDay, ignoredDirectory);
+
+                Processor.MoveFiles(runFolderPath);
                 success = true;
             }
             catch (Exception ex)
@@ -166,7 +171,7 @@ namespace ImgOrganizr
             return uniqueNumbersPerDay;
         }
 
-        private static void RenderLiveDisplay(string dir, Dictionary<string, int> uniqueNumbersPerDay)
+        private static void RenderLiveDisplay(string dir, Dictionary<string, int> uniqueNumbersPerDay, string ignoredDirectory)
         {
 
             var table = new Table().Border(TableBorder.Rounded);
@@ -215,8 +220,30 @@ namespace ImgOrganizr
                     }
                     else
                     {
-                        // Keep the original name if DateTaken is null
-                        table.AddRow(oldFileName, "Kept Original");
+                        // Move file to ignored directory if no date available
+                        if (!string.IsNullOrEmpty(ignoredDirectory))
+                        {
+                            Directory.CreateDirectory(ignoredDirectory);
+                            string fileName = Path.GetFileName(filePath);
+                            string ignoredFilePath = Path.Combine(ignoredDirectory, fileName);
+                            
+                            // Handle duplicate filenames
+                            int counter = 1;
+                            while (File.Exists(ignoredFilePath))
+                            {
+                                string fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+                                string extension = Path.GetExtension(fileName);
+                                ignoredFilePath = Path.Combine(ignoredDirectory, $"{fileNameWithoutExt}_{counter}{extension}");
+                                counter++;
+                            }
+                            
+                            File.Move(filePath, ignoredFilePath);
+                            table.AddRow(oldFileName, "[yellow]Moved to ignored[/]");
+                        }
+                        else
+                        {
+                            table.AddRow(oldFileName, "Kept Original");
+                        }
                     }
 
                     // Update the LiveDisplay
