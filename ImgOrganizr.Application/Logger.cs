@@ -1,14 +1,16 @@
 using System;
 using System.IO;
-using ImgOrganizr.Application;
 
-public class Logger
+namespace ImgOrganizr.Application
 {
-    public event Action<LogMessage> MessageLogged = delegate { };
-
-    public void Log(LogMessage logMessage)
+    public class Logger
     {
-        // Raise event
-        MessageLogged(logMessage);
+        public event Action<LogMessage> MessageLogged = delegate { };
+
+        public void Log(LogMessage logMessage)
+        {
+            // Raise event
+            MessageLogged(logMessage);
+        }
     }
 }
