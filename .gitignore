@@ -266,3 +266,4 @@ __pycache__/
 *.pyc
 *.playlist
 /package-lock.json
+log.txt

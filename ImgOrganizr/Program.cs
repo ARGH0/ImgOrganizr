@@ -108,6 +108,8 @@ namespace ImgOrganizr
                 RenderLiveDisplay(runFolderPath, uniqueNumbersPerDay, ignoredDirectory);
 
                 Processor.MoveFiles(runFolderPath);
+                // Log folder structure for this run
+                LogFolderStructure(runFolderPath, logger);
                 success = true;
             }
             catch (Exception ex)
@@ -250,6 +252,50 @@ namespace ImgOrganizr
                     ctx.Refresh();
                 }
             });
+        }
+
+        /// <summary>
+        /// Logs the folder structure under the specified root directory.
+        /// </summary>
+        /// <param name="rootDir">The run folder path.</param>
+        /// <param name="logger">Logger to output messages.</param>
+        private static void LogFolderStructure(string rootDir, Logger logger)
+        {
+            try
+            {
+                // Render Spectre.Console Tree showing directories and files
+                var tree = new Tree($"[bold]Run:[/] {Path.GetFileName(rootDir)}");
+                var rootNode = tree.AddNode(Path.GetFileName(rootDir));
+
+                TreeNode AddNodes(TreeNode node, string dir)
+                {
+                    // First add sub-directories
+                    foreach (var subDir in Directory.GetDirectories(dir))
+                    {
+                        var child = node.AddNode(Path.GetFileName(subDir));
+                        AddNodes(child, subDir);
+                    }
+
+                    // Then add files in this directory
+                    foreach (var file in Directory.GetFiles(dir))
+                    {
+                        node.AddNode(Path.GetFileName(file));
+                    }
+
+                    return node;
+                }
+
+                AddNodes(rootNode, rootDir);
+                var panel = new Panel(tree)
+                    .Border(BoxBorder.Rounded)
+                    .Expand();
+                AnsiConsole.Write(panel);
+            }
+            catch (Exception ex)
+            {
+                // Keep a concise error message; no structure logs
+                logger.Log(new LogMessage(message: $"Failed to render tree: {ex.Message}", color: "red", level: "ERROR"));
+            }
         }
 
         private static void ConfigureServices(IServiceCollection services)
